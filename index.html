@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retro Calc & Graph</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b0b16;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .calculator-container {
+            width: 100%;
+            max-width: 380px;
+            background: #1a1a2e;
+            border: 4px solid #00ffcc;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        h1 {
+            font-size: 16px;
+            text-align: center;
+            margin: 0;
+            color: #ff007f;
+            text-shadow: 2px 2px #333;
+        }
+        /* Ecrã LCD Retrô */
+        .display {
+            background: #0f281e;
+            border: 3px inset #00ffcc;
+            height: 70px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            color: #00ff66;
+            font-size: 24px;
+            font-weight: bold;
+            overflow: hidden;
+            word-break: break-all;
+        }
+        .history {
+            font-size: 12px;
+            color: #008844;
+        }
+        /* Área do Gráfico */
+        .graph-box {
+            display: none;
+            background: #000;
+            border: 2px solid #00ffcc;
+            width: 100%;
+            height: 150px;
+        }
+        .graph-box.active {
+            display: block;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* Teclado da Calculadora */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .btn {
+            background-color: #222244;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            padding: 15px 0;
+            font-size: 18px;
+            font-family: inherit;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.1s;
+        }
+        .btn:active {
+            background-color: #00ffcc;
+            color: #111;
+        }
+        .btn.operator {
+            background-color: #3b1443;
+            border-color: #ff007f;
+            color: #ff007f;
+        }
+        .btn.operator:active {
+            background-color: #ff007f;
+            color: #fff;
+        }
+        .btn.action {
+            background-color: #14383b;
+            border-color: #00bfff;
+            color: #00bfff;
+        }
+        .btn.action:active {
+            background-color: #00bfff;
+            color: #111;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator-container">
+        <h1>💾 RETRO-CALC v1.0 💾</h1>
+        
+        <!-- Ecrã -->
+        <div class="display">
+            <div class="history" id="history">0</div>
+            <div id="current">0</div>
+        </div>
+
+        <!-- Tela de Gráfico (Alternativa ao Ecrã se ativada) -->
+        <div class="graph-box" id="graphBox">
+            <canvas id="graphCanvas" width="340" height="150"></canvas>
+        </div>
+
+        <!-- Teclado -->
+        <div class="keypad">
+            <button class="btn action" onclick="clearCalc()">AC</button>
+            <button class="btn action" onclick="deleteChar()">⌫</button>
+            <button class="btn action" onclick="toggleGraph()">📈</button>
+            <button class="btn operator" onclick="appendOperator('/')">÷</button>
+
+            <button class="btn" onclick="appendNumber('7')">7</button>
+            <button class="btn" onclick="appendNumber('8')">8</button>
+            <button class="btn" onclick="appendNumber('9')">9</button>
+            <button class="btn operator" onclick="appendOperator('*')">×</button>
+
+            <button class="btn" onclick="appendNumber('4')">4</button>
+            <button class="btn" onclick="appendNumber('5')">5</button>
+            <button class="btn" onclick="appendNumber('6')">6</button>
+            <button class="btn operator" onclick="appendOperator('-')">-</button>
+
+            <button class="btn" onclick="appendNumber('1')">1</button>
+            <button class="btn" onclick="appendNumber('2')">2</button>
+            <button class="btn" onclick="appendNumber('3')">3</button>
+            <button class="btn operator" onclick="appendOperator('+')">+</button>
+
+            <button class="btn" onclick="appendNumber('0')">0</button>
+            <button class="btn" onclick="appendNumber('.')">.</button>
+            <button class="btn action" style="grid-column: span 2;" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <script>
+        const currentEl = document.getElementById('current');
+        const historyEl = document.getElementById('history');
+        const graphBox = document.getElementById('graphBox');
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentInput = '0';
+        let historyString = '';
+        let isGraphMode = false;
+
+        function updateDisplay() {
+            currentEl.textContent = currentInput;
+            historyEl.textContent = historyString;
+        }
+
+        function appendNumber(num) {
+            if (currentInput === '0' && num !== '.') {
+                currentInput = num;
+            } else {
+                currentInput += num;
+            }
+            updateDisplay();
+        }
+
+        function appendOperator(op) {
+            currentInput += ` ${op} `;
+            updateDisplay();
+        }
+
+        function clearCalc() {
+            currentInput = '0';
+            historyString = '';
+            isGraphMode = false;
+            graphBox.classList.remove('active');
+            updateDisplay();
+        }
+
+        function deleteChar() {
+            if (currentInput.length > 1) {
+                currentInput = currentInput.trim();
+                currentInput = currentInput.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        function calculate() {
+            try {
+                historyString = currentInput;
+                // Substituir símbolos visuais por operadores de JS
+                let evalString = currentInput.replace(/×/g, '*').replace(/÷/g, '/');
+                let result = eval(evalString);
+                currentInput = String(result);
+                updateDisplay();
+            } catch (error) {
+                currentInput = 'ERRO';
+                updateDisplay();
+            }
+        }
+
+        // Função para alternar e desenhar o gráfico estilo retro (Função Seno / Polinómio)
+        function toggleGraph() {
+            isGraphMode = !isGraphMode;
+            if (isGraphMode) {
+                graphBox.classList.add('active');
+                drawRetroGraph();
+            } else {
+                graphBox.classList.remove('active');
+            }
+        }
+
+        function drawRetroGraph() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar grelha estilo arcade
+            ctx.strokeStyle = '#052211';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let j = 0; j < canvas.height; j += 20) {
+                ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+            }
+
+            // Eixos X e Y centrais
+            ctx.strokeStyle = '#00ffcc';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+
+            // Desenhar Curva Gráfica (ex: Onda Senoidal / Seno)
+            ctx.strokeStyle = '#ff007f';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let x = 0; x < canvas.width; x++) {
+                let scaledX = (x - canvas.width / 2) / 20;
+                // Exemplo de função matemática estilizada: f(x) = sin(x) * cos(x/2)
+                let scaledY = Math.sin(scaledX) * Math.cos(scaledX / 2) * 40;
+                let y = canvas.height / 2 - scaledY;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+    </script>
+</body>
+</html>
